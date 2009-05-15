@@ -27,16 +27,18 @@ DEFAULT_TARGET_NAME = "NetCologne Box"
 DEBUG = False
 
 #
-__VERSION__ = '0.2.1'
+__VERSION__ = '0.2.2'
 
 # 0.1    2009.03.29   first version
 # 0.2    2009.03.31   added: fritzbox, first published version
 # 0.2.1  2009.04.27   added: command line interface
+# 0.2.2  2009.05.11   added: raw log
 
 import socket
 import re
 import getopt
 import sys
+import datetime
 
 def dhms(sec):
     """ return number of seconds as (days,hours,minutes,seconds)
@@ -270,12 +272,13 @@ class fritz_box(basic_modem):
 
 def usage():
     print """Usage: %s [OPTIONS]
---help      this message
---host, -h  host ip (default: %s)
---port. -p  port number (default: %s)
---type, -t  type of router (mandatory)
---list      list available router
---debug     enter debug mode
+--help        this message
+--host, -h    host ip (default: %s)
+--port. -p    port number (default: %s)
+--type, -t    type of router (mandatory)
+--list        list available router
+--rawlog fnm  save raw data in file
+--debug       enter debug mode
 """ % (sys.argv[0],DEFAULT_HOST,DEFAULT_PORT)
 
 def list_models(all):
@@ -303,9 +306,10 @@ def main():
     portno = DEFAULT_PORT
     target_name = DEFAULT_TARGET_NAME
     selected_model = None
+    rawlog = None
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h:p:t:", ["help", "host=","port=","type=","list","debug"])
+        opts, args = getopt.getopt(sys.argv[1:], "h:p:t:", ["help", "host=","port=","type=","list","debug","rawlog="])
     except getopt.GetoptError:
         print "unknown option"
         usage()
@@ -326,6 +330,8 @@ def main():
             portno = a
         if o in ("-t", "--type"):
             selected_model = get_model(allrouter, a)
+        if o == "--rawlog":
+            rawlog = a
 
     if selected_model is None:
         print "Please select type of router.\n"
@@ -342,11 +348,27 @@ def main():
 
     inbytes, outbytes, uptime, target = selected_model.query(hostip,portno)
 
+    # store raw data in a file (if requested)
+    # give a hint in the output that will displayed in the HTML page
+
+    if rawlog is None:
+        logindicator = ''
+    else:
+        try:
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            f = open(rawlog,'a')
+            print >>f,'%s\t%s\t%s\t%s' % (now,inbytes,outbytes,uptime)
+            f.close()
+            logindicator = ' (logged)'
+        except IOError:
+            logindicator = ' (error during logging)'
+
     # output for MRTG
     print none2unknown(inbytes)
     print none2unknown(outbytes)
     print uptime
-    print target_name
+    print target_name + logindicator
+
 
 if __name__ == "__main__":
     main()
