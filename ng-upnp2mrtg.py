@@ -27,12 +27,13 @@ DEFAULT_TARGET_NAME = "NetCologne Box"
 DEBUG = False
 
 #
-__VERSION__ = '0.2.2'
+__VERSION__ = '0.2.3'
 
 # 0.1    2009.03.29   first version
 # 0.2    2009.03.31   added: fritzbox, first published version
 # 0.2.1  2009.04.27   added: command line interface
 # 0.2.2  2009.05.11   added: raw log
+# 0.2.3  2009.05.18   added: nowrap
 
 import socket
 import re
@@ -60,6 +61,13 @@ def none2unknown(val):
     """
     if val is None: return "UNKNOWN"
     return val
+
+def my_int(s, default = None):
+    try:
+        v = int(s)
+    except ValueError:
+        v = default
+    return v
 
 def response_code(msg):
     """ extract response code from HTTP response
@@ -267,6 +275,71 @@ class fritz_box(basic_modem):
 
         uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
         return inbytes, outbytes, uptime_str, self.target_name
+###################################################
+class nowrap_handler(object):
+    # The last raw values from the device and the last offsets
+    # are stored in a file.
+
+    def __init__(self,filename):
+        self.filename = filename
+        self.lastinraw = None
+        self.lastoutraw = None
+        self.inoffset = 0
+        self.outoffset = 0
+
+        try:
+            lines = open(filename,'r').readlines()
+            if len(lines) != 2: raise ValueError,"format mismatch"
+
+            comp = re.compile("^(\d+)\t(\d+)\n$")
+            m1 = comp.match(lines[0])
+            m2 = comp.match(lines[1])
+            if (m1 is None) or (m2 is None): raise ValueErrur,"format mismatch"
+
+            self.lastinraw = int(m1.group(1))
+            self.lastoutraw = int(m1.group(2))
+            self.inoffset = int(m2.group(1))
+            self.outoffset = int(m2.group(2))
+        except (IOError, ValueError):
+            pass
+
+    def __str__(self):
+        return "%s\t%s\n%s\t%s\n" % (self.lastinraw, self  .lastoutraw, \
+            self.inoffset, self.outoffset)
+
+    def get_corr_values(self,newinraw,newoutraw):
+        # - get corrected values
+        # - store last values (if not None)
+        # - calc new offset
+
+        newinraw = my_int(newinraw,None)
+        newoutraw = my_int(newoutraw,None)
+
+        if not (newinraw is None):
+            if newinraw < self.lastinraw:
+                self.inoffset += self.lastinraw
+            self.lastinraw = newinraw
+
+            newinraw += self.inoffset
+
+        if not (newoutraw is None):
+            if newoutraw < self.lastoutraw:
+                self.outoffset += self.lastoutraw
+            self.lastoutraw = newoutraw
+
+            newoutraw += self.outoffset
+
+        return newinraw, newoutraw
+
+    def store_info(self):
+        f = open(self.filename,'w')
+        f.write(str(self))
+        f.close()
+
+    def get_offsets(self):
+        return self.inoffset, self.outoffset
+
+
 
 ############## command line interface #############
 
@@ -278,6 +351,7 @@ def usage():
 --type, -t    type of router (mandatory)
 --list        list available router
 --rawlog fnm  save raw data in file
+--nowrap fnm  activate anti-wrap, store status in fnm
 --debug       enter debug mode
 """ % (sys.argv[0],DEFAULT_HOST,DEFAULT_PORT)
 
@@ -307,9 +381,10 @@ def main():
     target_name = DEFAULT_TARGET_NAME
     selected_model = None
     rawlog = None
+    nowrap = None
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h:p:t:", ["help", "host=","port=","type=","list","debug","rawlog="])
+        opts, args = getopt.getopt(sys.argv[1:], "h:p:t:", ["help", "host=","port=","type=","list","debug","rawlog=","nowrap="])
     except getopt.GetoptError:
         print "unknown option"
         usage()
@@ -332,6 +407,8 @@ def main():
             selected_model = get_model(allrouter, a)
         if o == "--rawlog":
             rawlog = a
+        if o == "--nowrap":
+            nowrap = nowrap_handler(a)
 
     if selected_model is None:
         print "Please select type of router.\n"
@@ -348,6 +425,10 @@ def main():
 
     inbytes, outbytes, uptime, target = selected_model.query(hostip,portno)
 
+    if not(nowrap is None):
+        inbytes, outbytes = nowrap.get_corr_values(inbytes,outbytes)
+        nowrap.store_info()
+
     # store raw data in a file (if requested)
     # give a hint in the output that will displayed in the HTML page
 
@@ -356,8 +437,14 @@ def main():
     else:
         try:
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if nowrap is None:
+                add_info = ''
+            else:
+                di, do = nowrap.get_offsets()
+                add_info = '\t%s\t%s' % (di,do)
+
             f = open(rawlog,'a')
-            print >>f,'%s\t%s\t%s\t%s' % (now,inbytes,outbytes,uptime)
+            print >>f,'%s\t%s\t%s\t%s%s' % (now,inbytes,outbytes,uptime,add_info)
             f.close()
             logindicator = ' (logged)'
         except IOError:
