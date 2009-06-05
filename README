@@ -1,0 +1,63 @@
+ng-upnp2mrtg							2009-06-05
+
+version 0.2.3, Michael Strecke
+
+ng-upnp2mrtg is a small python script to retrieve data from UPNP enabled routers and hand it over to MRTG.  Currently it supports Fritz Box modem/routers and the NetCologne Premium Router (a re-branded Sphairon Turbolink 7211).
+
+
+PREREQUISITS
+
+Python 2.5 or newer (older versions not tested).  Standard libraries are sufficient.
+
+
+INSTALLATION
+
+* Copy the script ng-upnp2mrtg.py to a directory of you choice.
+* Modify the MRTG configuration file accordingly.
+
+
+USAGE
+
+ng-upnp2mrtg.py is usually called via mrtg.  The mrtg configuration file is found in /etc/mrtg.cfg (see included sample configuration file).
+
+
+CONFIGURATION
+
+ng-upnp2mrtg.py itself is configured via command line options:
+
+
+--host, -h
+  IP address or host name of the UPNP device (default: 192.168.0.1)
+
+--port, -p
+  UPNP port of the device (default: 49300)
+
+--type, -t    type of router (mandatory)
+  UPNP type (see --list option below) - controls which query parameters are used
+--nowrap filename
+  activates the anti-wrap option.  Modems tend to reset their byte counts after a disconnect which shows up as a huge spike in the MRTG graph.  To counter this, ng-upnp2mrtg.py keeps track of the byte count and adds the last byte count before the reset as an offset to all subsequent results.  This information is stored in 'filename'
+
+--rawlog filename
+  the raw byte counts can be logged in 'filename' for debugging purposes.
+
+--debug
+  outputs even more debugging information (to stdout).  This option must not be used if the script is called via MRTG.
+
+--help
+  short parameter list
+
+--list
+  displays a list of supported routers.  The values in the first column are used in the -t option.
+
+The following routers are currently supported:
+  nc_premium      NetCologn Premium (Sphairon Turbolink 7211)
+  fritzbox        various FritzBox models
+
+
+OTHER UPNP DEVICES
+
+ng-upnp2mrtg.py can be easily extended.  See  http://ng-upnp2mrtg.sourceforge.net/extending.html or http://tuxpool.blogspot.com/search/label/UPnP for further information.
+
+
+
+
