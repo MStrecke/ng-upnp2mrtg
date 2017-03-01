@@ -244,7 +244,41 @@ class nc_router(basic_modem):
 
         uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
         return inbytes, outbytes, uptime_str, self.target_name
-    
+
+class fritzbox_7490(basic_modem):
+    def get_id(self):
+        return "fritzbox_7490"
+
+    def get_long_id(self):
+        return "Fritzbox 7490"
+
+    def query(self,host,port):
+        uc = upnpclient(host,port)
+
+        inbytes = uc.send_command("igdupnp/control/WANCommonIFC1",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesReceived",
+           "NewTotalBytesReceived")
+
+        outbytes = uc.send_command("igdupnp/control/WANCommonIFC1",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesSent",
+           "NewTotalBytesSent")
+
+        uptime = uc.send_command("igdupnp/control/WANIPConn1",   # controlurl
+           "WANIPConnection:1",  # servicetype
+           "GetStatusInfo",
+           "NewUptime")
+
+        try:
+            uptime = int(uptime)
+        except (ValueError,TypeError):
+            uptime = None
+        if uptime is None: uptime = 0
+
+        uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
+        return inbytes, outbytes, uptime_str, self.target_name
+
 class archer_c7(basic_modem):
     def get_id(self):
         return "archer_c7"
@@ -274,38 +308,6 @@ class archer_c7(basic_modem):
         uptime_str = uptime.split(" ")[0] + " days " + uptime.split(" ")[2] + " h"
         return inbytes, outbytes, uptime_str, self.target_name
 
-class fritz_box(basic_modem):
-    def get_id(self):
-        return "fritzbox"
-
-    def get_long_id(self):
-        return "FritzBox"
-
-    def query(self,host,port):
-        # NOT TESTED
-
-        uc = upnpclient(host,port)
-
-        inbytes, outbytes = uc.send_command("upnp/control/WANCommonIFC1",
-           "WANCommonInterfaceConfig:1",
-           "GetAddonInfos",
-           ('NewTotalBytesReceived','NewTotalBytesSent'))
-
-        uptime = uc.send_command("upnp/control/WANIPConn1",
-           "WANIPConnection:1",
-           "GetStatusInfo",
-           'NewUptime')
-
-        try:
-            uptime = int(uptime)
-        except (ValueError,TypeError):
-            uptime = None
-        if uptime is None: uptime = 0
-
-        uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
-        return inbytes, outbytes, uptime_str, self.target_name
-    
-    
 ###################################################
 class nowrap_handler(object):
     # The last raw values from the device and the last offsets
@@ -405,7 +407,7 @@ def get_model(all,search):
 def main():
     global DEBUG
 
-    allrouter = (nc_router(), fritz_box(), archer_c7())
+    allrouter = (nc_router(), fritzbox_7490(), archer_c7())
 
     hostip = DEFAULT_HOST
     portno = DEFAULT_PORT
