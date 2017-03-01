@@ -244,6 +244,35 @@ class nc_router(basic_modem):
 
         uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
         return inbytes, outbytes, uptime_str, self.target_name
+    
+class archer_c7(basic_modem):
+    def get_id(self):
+        return "archer_c7"
+
+    def get_long_id(self):
+        return "Tp-Link Archer C7"
+
+    def query(self,host,port):
+        uc = upnpclient(host,port)
+
+        inbytes = uc.send_command("ifc",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesReceived",
+           "NewTotalBytesReceived")
+
+        outbytes = uc.send_command("ifc",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesSent",
+           "NewTotalBytesSent")
+
+        uptime = uc.send_command("ipc",   # controlurl
+           "WANIPConnection:1",  # servicetype
+           "GetStatusInfo",
+           "NewUptime")
+        # Expected uptime string: "103 Days, 12:49:51"
+
+        uptime_str = uptime.split(" ")[0] + " days " + uptime.split(" ")[2] + " h"
+        return inbytes, outbytes, uptime_str, self.target_name
 
 class fritz_box(basic_modem):
     def get_id(self):
@@ -275,6 +304,8 @@ class fritz_box(basic_modem):
 
         uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
         return inbytes, outbytes, uptime_str, self.target_name
+    
+    
 ###################################################
 class nowrap_handler(object):
     # The last raw values from the device and the last offsets
@@ -374,7 +405,7 @@ def get_model(all,search):
 def main():
     global DEBUG
 
-    allrouter = (nc_router(), fritz_box())
+    allrouter = (nc_router(), fritz_box(), archer_c7())
 
     hostip = DEFAULT_HOST
     portno = DEFAULT_PORT
@@ -454,7 +485,7 @@ def main():
     print none2unknown(inbytes)
     print none2unknown(outbytes)
     print uptime
-    print target_name + logindicator
+    print selected_model.get_long_id() + logindicator
 
 
 if __name__ == "__main__":
