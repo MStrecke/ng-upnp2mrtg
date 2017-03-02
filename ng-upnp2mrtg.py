@@ -26,15 +26,6 @@ DEFAULT_TARGET_NAME = "NetCologne Box"
 # prints lots of stuff
 DEBUG = False
 
-#
-__VERSION__ = '0.2.3'
-
-# 0.1    2009.03.29   first version
-# 0.2    2009.03.31   added: fritzbox, first published version
-# 0.2.1  2009.04.27   added: command line interface
-# 0.2.2  2009.05.11   added: raw log
-# 0.2.3  2009.05.18   added: nowrap
-
 import socket
 import re
 import getopt
