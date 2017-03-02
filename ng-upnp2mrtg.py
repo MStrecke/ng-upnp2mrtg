@@ -46,11 +46,11 @@ def dhms(sec):
     """
     if sec is None: return (0,0,0,0)
 
-    min = sec / 60
+    min = sec // 60
     sec %= 60
-    ho = min / 60
+    ho = min // 60
     min %= 60
-    day = ho / 24
+    day = ho // 24
     ho %= 24
 
     return (day, ho, min, sec)
@@ -327,7 +327,7 @@ class nowrap_handler(object):
             comp = re.compile("^(\d+)\t(\d+)\n$")
             m1 = comp.match(lines[0])
             m2 = comp.match(lines[1])
-            if (m1 is None) or (m2 is None): raise ValueErrur,"format mismatch"
+            if (m1 is None) or (m2 is None): raise ValueError,"format mismatch"
 
             self.lastinraw = int(m1.group(1))
             self.lastoutraw = int(m1.group(2))
