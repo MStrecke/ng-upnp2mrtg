@@ -240,7 +240,7 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #
 #  soap parameter:
 #    control url (with leading slash)
-#    service schema
+#    service type
 #    service action
 #    tag in answer containing the result
 #
