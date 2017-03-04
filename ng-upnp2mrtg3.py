@@ -285,7 +285,7 @@ ROUTERS = [
         # function pointer: uptime -> human readable format
         dhms
     ),
-    (   # info contributed ddiepo
+    (   # info contributed by https://github.com/ddiepo
         # short_id, long_id
         "archer_c7", "Tp-Link Archer C7",
         # incoming bytes
