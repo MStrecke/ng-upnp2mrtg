@@ -148,7 +148,7 @@ class Upnpclient:
 </s:Envelope>""" % (action, schema)
 
         # create the HTTP POST request header
-        pream = """POST /%s HTTP/1.0
+        pream = """POST %s HTTP/1.0
 HOST: %s:%s
 CONTENT-LENGTH: %s
 CONTENT-TYPE: text/xml; charset="utf-8"
@@ -239,7 +239,7 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #       14: function pointer to convert uptime into a human readable form
 #
 #  soap parameter:
-#    control url
+#    control url (with leading slash)
 #    service schema
 #    service action
 #    tag in answer containing the result
@@ -248,17 +248,17 @@ ROUTERS = [
     (   # short_id, long_id
         "nc_premium", "NetCologn Premium",
         # incoming bytes
-        "WANCommonInterfaceConfigService/control",    # control url
+        "/WANCommonInterfaceConfigService/control",    # control url
            "WANCommonInterfaceConfig:1",              # schema
            "GetTotalBytesReceived",                   # action
            "NewTotalBytesReceived",                   # tag
         # outgoing bytes
-        "WANCommonInterfaceConfigService/control",
+        "/WANCommonInterfaceConfigService/control",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
            "NewTotalBytesSent",
         # uptime
-        "WANIPConnectionService/control",
+        "/WANIPConnectionService/control",
            "WANIPConnection:1",
            "GetStatusInfo",
            "NewUptime",
@@ -268,17 +268,17 @@ ROUTERS = [
     (   # short_id, long_id
         "fritzbox_7490", "Fritzbox 7490",
         # incoming bytes
-        "igdupnp/control/WANCommonIFC1",
+        "/igdupnp/control/WANCommonIFC1",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesReceived",
            "NewTotalBytesReceived",
         # outgoing bytes
-        "igdupnp/control/WANCommonIFC1",
+        "/igdupnp/control/WANCommonIFC1",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
            "NewTotalBytesSent",
         # uptime
-        "igdupnp/control/WANIPConn1",   # controlurl
+        "/igdupnp/control/WANIPConn1",   # controlurl
            "WANIPConnection:1",  # servicetype
            "GetStatusInfo",
            "NewUptime",
@@ -289,17 +289,17 @@ ROUTERS = [
         # short_id, long_id
         "archer_c7", "Tp-Link Archer C7",
         # incoming bytes
-        "ifc",
+        "/ifc",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesReceived",
            "NewTotalBytesReceived",
         # outgoing bytes
-        "ifc",
+        "/ifc",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
            "NewTotalBytesSent",
         # uptime
-        "igdupnp/control/WANIPConn1",   # controlurl
+        "/ifc",                  # controlurl
            "WANIPConnection:1",  # servicetype
            "GetStatusInfo",
            "NewUptime",
