@@ -29,13 +29,16 @@ import argparse
 import datetime
 
 def dhms(s):
-    # uptime is returned as number of seconds
-    """ return number of seconds as string "x days, xx:xx:xx h"
+    """ convert integer uptime to human readable form
+
+    :param s: integer
+    :return: "x days, xx:xx:xx h"
+    .note: conversion routine for uptime values measured in seconds
     """
     try:
         sec = int(s)
     except:
-        # oops, no integer? display as is
+        # oops, not an integer? display as is
         return s
 
     min = sec // 60
@@ -48,51 +51,69 @@ def dhms(s):
     return "%s days, %02d:%02d:%02d h" % (day, ho, min, sec)
 
 def archer_uptime_conv(s):
+    """ convert uptime answer to human readable form
+    """
     # string returned by archer modem: "103 Days, 12:49:51"
+    # not much to do here
     return s.lower() + ' h'
 
 def none2unknown(val):
-    """ return value as is, except if value is None
-        rrdtools/mrtg wants UNKNOWN in this case
+    """ return value or "UNKNOWN" if value is None
+
+    :param val: value to check
+    :return: value or "UNKNOWN"
+    .note: rrdtools/mrtg wants UNKNOWN if the value is None
     """
     if val is None:
         return "UNKNOWN"
     return val
 
-def my_int(s, default = None):
+def my_int(s, default=None):
+    """ get integer from string
+
+    :param s: string to convert
+    :param default: value in case of a conversion error
+    :return: integer value
+    """
     try:
         v = int(s)
-    except ValueError:
+    except:
         v = default
     return v
 
-def response_code(msg):
-    """ extract response code from HTTP response
-         example: HTTP/1.1 200 OK
-        -> 200: ok
-        -> -1: error during decode
-        -> any other is considered not ok
+def get_response_code(msg):
+    """ extract response status code from HTTP response
+
+    :param msg: HTTP response, e.g. "HTTP/1.1 200 OK"
+    :return: code or None on error
     """
-    if msg is None: return 0
+    if msg is None:
+        return None
 
     match = re.match('^HTTP/1\.[0|1]\s+(\d+)',msg)
     if match is None:
-        return 0
+        return None
     return int(match.group(1))
 
-def gettag(answer,tag):
-    """ find <tag>result</tag> in answer
+def gettag(answer, tag):
+    """ get contents of result tag in answer
+
+    :param answer: SOAP answer
+    :param tag: tag around the desired value
+    :return: content or None
     """
 
     if (answer is None) or (tag is None):
         return None
 
+    # <tag>result</tag>
     # extract part between <tag> and </tag>
     tag1 = "<%s>" % (tag,)
     tag2 = "</%s>" % (tag,)
     po1 = answer.find(tag1) + len(tag1)
     if po1<0 :
         return None      # opening tag not found
+
     po2 = answer.find(tag2,po1)
     if po2<0 :
         return None      # closing tag not found
@@ -100,11 +121,23 @@ def gettag(answer,tag):
     return answer[po1:po2]
 
 class Upnpclient:
-    def __init__(self,host,port):
+    """ Class to build a SOAP request
+        send it to tht server
+        read the answer
+        and extract the desired information
+    """
+
+    def __init__(self, host, port):
+        """ initialize
+
+        :param host: host name of UPNP server
+        :param port: port of UPNP server
+        """
         self.host = host
         self.port = port
 
-    def create_message(self,serviceurl,schema,action):
+    def create_message(self, serviceurl, schema, action):
+        # create the SOAP request
         body="""<?xml version="1.0"?>
     <s:Envelope
         xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
@@ -112,27 +145,29 @@ class Upnpclient:
     <s:Body>
        <u:%s xmlns:u="urn:schemas-upnp-org:service:%s" />
     </s:Body>
-</s:Envelope>""" % (action,schema)
+</s:Envelope>""" % (action, schema)
 
+        # create the HTTP POST request header
         pream = """POST /%s HTTP/1.0
 HOST: %s:%s
 CONTENT-LENGTH: %s
 CONTENT-TYPE: text/xml; charset="utf-8"
 SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 
-""".replace("\n","\r\n") % (serviceurl,self.host,self.port,len(body),schema,action)
+""".replace("\n","\r\n") % (serviceurl, self.host, self.port, len(body), schema, action)
 
-        dat = "%s%s" % (pream,body)
+        return "%s%s" % (pream, body)
 
-        return dat
-
-    def send(self,cmd):
+    def send(self, cmd):
         """ send command to host:port and wait for the answer
+
+        :param cmd: HTTP POST with SOAP payload
+        :return: answer from the UPNP server
         """
 
         # create TCP socket and connect to host:port
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.host,self.port))
+        s.connect((self.host, self.port))
 
         # send text
         s.send(cmd.encode('utf-8'))
@@ -170,10 +205,11 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
             print(res)
 
         # check return code
-        ret_code = response_code(res)
+        ret_code = get_response_code(res)
         if DEBUG:
             print('repsonse code:', ret_code)
-        if ret_code != 200: return None
+        if ret_code != 200:
+            return None
 
         if tag is None:
             return res  # debug
@@ -195,35 +231,35 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #
 # A list of tuples. Each tuple has 15 entries.
 #
-#  0: short_id - used in the list_model and parameter --type
-#  1: long_id - something more descriptive
-#  2 - 5: soap parameter for incoming byte count
-#  6 - 9: soap parameter for outgoing byee count
-#  10 - 13: soap parameter for uptime request
-#  14: function pointer to convert uptime into a human readable form
+#        0: short_id - used in list_model and as parameter --type
+#        1: long_id - something more descriptive, will be on the output for MRTG
+#    2 - 5: soap parameters for incoming byte count
+#    6 - 9: soap parameters for outgoing byee count
+#  10 - 13: soap parameters for uptime request
+#       14: function pointer to convert uptime into a human readable form
 #
 #  soap parameter:
 #    control url
 #    service schema
 #    service action
-#    name of tag in answer containg the result
+#    tag in answer containing the result
 #
 ROUTERS = [
     (   # short_id, long_id
         "nc_premium", "NetCologn Premium",
         # incoming bytes
-        "WANCommonInterfaceConfigService/control",
-           "WANCommonInterfaceConfig:1",
-           "GetTotalBytesReceived",
-           "NewTotalBytesReceived",
+        "WANCommonInterfaceConfigService/control",    # control url
+           "WANCommonInterfaceConfig:1",              # schema
+           "GetTotalBytesReceived",                   # action
+           "NewTotalBytesReceived",                   # tag
         # outgoing bytes
         "WANCommonInterfaceConfigService/control",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
            "NewTotalBytesSent",
         # uptime
-        "WANIPConnectionService/control",   # controlurl
-           "WANIPConnection:1",  # servicetype
+        "WANIPConnectionService/control",
+           "WANIPConnection:1",
            "GetStatusInfo",
            "NewUptime",
         # function pointer: uptime -> human readable format
@@ -249,7 +285,7 @@ ROUTERS = [
         # function pointer: uptime -> human readable format
         dhms
     ),
-    (   # info by dd
+    (   # info contributed ddiepo
         # short_id, long_id
         "archer_c7", "Tp-Link Archer C7",
         # incoming bytes
@@ -271,11 +307,11 @@ ROUTERS = [
     )
 ]
 
-###################################################
-
 class Nowrap_handler:
-    # The last raw values from the device and the last offsets
-    # are stored in a file.
+    """ Handle wrap-around of counter
+
+    The last raw values from the device and the last offsets are stored in a file.
+    """
 
     def __init__(self,filename):
         self.filename = filename
@@ -311,22 +347,28 @@ class Nowrap_handler:
         # - store last values (if not None)
         # - calc new offset
 
-        newinraw = my_int(newinraw,None)
-        newoutraw = my_int(newoutraw,None)
+        newinraw = my_int(newinraw, None)
+        newoutraw = my_int(newoutraw, None)
 
-        if not (newinraw is None):
-            if newinraw < self.lastinraw:
-                self.inoffset += self.lastinraw
+        if self.lastinraw is None:
             self.lastinraw = newinraw
+        else:
+            if not (newinraw is None):
+                if newinraw < self.lastinraw:
+                    self.inoffset += self.lastinraw
+                self.lastinraw = newinraw
 
-            newinraw += self.inoffset
+                newinraw += self.inoffset
 
-        if not (newoutraw is None):
-            if newoutraw < self.lastoutraw:
-                self.outoffset += self.lastoutraw
+        if self.lastoutraw is None:
             self.lastoutraw = newoutraw
+        else:
+            if not (newoutraw is None):
+                if newoutraw < self.lastoutraw:
+                    self.outoffset += self.lastoutraw
+                self.lastoutraw = newoutraw
 
-            newoutraw += self.outoffset
+                newoutraw += self.outoffset
 
         return newinraw, newoutraw
 
@@ -338,9 +380,12 @@ class Nowrap_handler:
     def get_offsets(self):
         return self.inoffset, self.outoffset
 
-############## command line interface #############
-
 def list_models(args):
+    """ output nicely formatted list
+
+    :param args: dummy parameter (expected by argparse)
+    :return:
+    """
     global ROUTERS
 
     if len(ROUTERS) == 0:
@@ -375,12 +420,12 @@ def main():
     parser.add_argument('--rawlog',
                         help='save raw values in this file')
     parser.add_argument('--nowrap',
-                        help='activate anti-wrap, store status in fnm')
+                        help='activate anti-wrap, store status in this file')
     parser.add_argument('--debug',
                         action='store_true',
                         help='display communication')
     parser.add_argument('--help',                   # as we have disabled it with "add_help=False"
-                        action='help',
+                        action='help',              # we need to add it manually for "--help"
                         help='show this help message and exit')
 
     args = parser.parse_args()
@@ -392,7 +437,10 @@ def main():
         parser.exit(0)                   # = sys.exit(0)
 
     if args.type is None:
-        print("Missing type")
+        print("*** Error: router type not given\n")
+        list_models(args)
+        parser.exit(1)
+
     DEBUG = args.debug
 
     selected_model = None
@@ -409,14 +457,17 @@ def main():
 
     uptime_str = selected_model[14](uptime)
 
-    nowarp = None
+    nowrap = None
     if not(args.nowrap is None):
-        nowarp = Nowrap_handler(args.nowarp)
-        inbytes, outbytes = nowarp.get_corr_values(inbytes,outbytes)
+        nowrap = Nowrap_handler(args.nowrap)
+        inbytes, outbytes = nowrap.get_corr_values(inbytes,outbytes)
         nowrap.store_info()
 
     # store raw data in a file (if requested)
     # give a hint in the output that will displayed in the HTML page
+
+    # "logindicator" is being appended to the "long_id" string and being displayed in the HTML page created by MRTG.
+    # It has no other function other than to send some feedback from this routine to the user
 
     if args.rawlog is None:
         logindicator = ''
@@ -429,7 +480,7 @@ def main():
                 di, do = nowrap.get_offsets()
                 add_info = '\t%s\t%s' % (di,do)
 
-            f = open(rawlog,'a')
+            f = open(args.rawlog,'a')
             f.write('%s\t%s\t%s\t%s%s\n' % (now,inbytes,outbytes,uptime,add_info))
             f.close()
             logindicator = ' (logged)'
