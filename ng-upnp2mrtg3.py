@@ -21,7 +21,7 @@ DEFAULT_HOST = "192.168.0.1"
 DEFAULT_PORT = 49300
 
 # prints lots of stuff
-DEBUG = False
+global_debug = None         # will be set by command line parameter
 
 import socket
 import re
@@ -191,22 +191,22 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
             tag can be a single string (in this case the function returns a string)
             or a tuple of strings (in this case a tuple of results is returned)
         """
-        global DEBUG
+        global global_debug
 
         cmd = self.create_message(serviceurl,schema,action)
-        if DEBUG:
+        if global_debug:
             print(cmd)
         try:
             res = self.send(cmd)
         except socket.error as msg:
             print('Socket error:', msg)
             return None
-        if DEBUG:
+        if global_debug:
             print(res)
 
         # check return code
         ret_code = get_response_code(res)
-        if DEBUG:
+        if global_debug:
             print('repsonse code:', ret_code)
         if ret_code != 200:
             return None
@@ -218,11 +218,11 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
             answer = []
             for t in tag:
                 answer.append( gettag(res,t) )
-            if DEBUG:
+            if global_debug:
                 return answer
             return tuple(answer)
         else:
-            if DEBUG:
+            if global_debug:
                 return gettag(res,tag)
             return gettag(res,tag)
 
@@ -399,7 +399,7 @@ def list_models(args):
         print("%-15s %s" % (m[0], m[1]))
 
 def main():
-    global DEBUG
+    global global_debug
 
     all_short_ids = [d[0] for d in ROUTERS]
 
@@ -441,7 +441,7 @@ def main():
         list_models(args)
         parser.exit(1)
 
-    DEBUG = DEBUG or args.debug
+    global_debug = args.debug
 
     selected_model = None
     for dt in ROUTERS:
