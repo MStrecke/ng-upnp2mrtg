@@ -26,15 +26,6 @@ DEFAULT_TARGET_NAME = "NetCologne Box"
 # prints lots of stuff
 DEBUG = False
 
-#
-__VERSION__ = '0.2.3'
-
-# 0.1    2009.03.29   first version
-# 0.2    2009.03.31   added: fritzbox, first published version
-# 0.2.1  2009.04.27   added: command line interface
-# 0.2.2  2009.05.11   added: raw log
-# 0.2.3  2009.05.18   added: nowrap
-
 import socket
 import re
 import getopt
@@ -46,11 +37,11 @@ def dhms(sec):
     """
     if sec is None: return (0,0,0,0)
 
-    min = sec / 60
+    min = sec // 60
     sec %= 60
-    ho = min / 60
+    ho = min // 60
     min %= 60
-    day = ho / 24
+    day = ho // 24
     ho %= 24
 
     return (day, ho, min, sec)
@@ -244,7 +235,41 @@ class nc_router(basic_modem):
 
         uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
         return inbytes, outbytes, uptime_str, self.target_name
-    
+
+class fritzbox_7490(basic_modem):
+    def get_id(self):
+        return "fritzbox_7490"
+
+    def get_long_id(self):
+        return "Fritzbox 7490"
+
+    def query(self,host,port):
+        uc = upnpclient(host,port)
+
+        inbytes = uc.send_command("igdupnp/control/WANCommonIFC1",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesReceived",
+           "NewTotalBytesReceived")
+
+        outbytes = uc.send_command("igdupnp/control/WANCommonIFC1",
+           "WANCommonInterfaceConfig:1",
+           "GetTotalBytesSent",
+           "NewTotalBytesSent")
+
+        uptime = uc.send_command("igdupnp/control/WANIPConn1",   # controlurl
+           "WANIPConnection:1",  # servicetype
+           "GetStatusInfo",
+           "NewUptime")
+
+        try:
+            uptime = int(uptime)
+        except (ValueError,TypeError):
+            uptime = None
+        if uptime is None: uptime = 0
+
+        uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
+        return inbytes, outbytes, uptime_str, self.target_name
+
 class archer_c7(basic_modem):
     def get_id(self):
         return "archer_c7"
@@ -274,38 +299,6 @@ class archer_c7(basic_modem):
         uptime_str = uptime.split(" ")[0] + " days " + uptime.split(" ")[2] + " h"
         return inbytes, outbytes, uptime_str, self.target_name
 
-class fritz_box(basic_modem):
-    def get_id(self):
-        return "fritzbox"
-
-    def get_long_id(self):
-        return "FritzBox"
-
-    def query(self,host,port):
-        # NOT TESTED
-
-        uc = upnpclient(host,port)
-
-        inbytes, outbytes = uc.send_command("upnp/control/WANCommonIFC1",
-           "WANCommonInterfaceConfig:1",
-           "GetAddonInfos",
-           ('NewTotalBytesReceived','NewTotalBytesSent'))
-
-        uptime = uc.send_command("upnp/control/WANIPConn1",
-           "WANIPConnection:1",
-           "GetStatusInfo",
-           'NewUptime')
-
-        try:
-            uptime = int(uptime)
-        except (ValueError,TypeError):
-            uptime = None
-        if uptime is None: uptime = 0
-
-        uptime_str = "%s days %02d:%02d:%02d h" % dhms(uptime)
-        return inbytes, outbytes, uptime_str, self.target_name
-    
-    
 ###################################################
 class nowrap_handler(object):
     # The last raw values from the device and the last offsets
@@ -325,7 +318,7 @@ class nowrap_handler(object):
             comp = re.compile("^(\d+)\t(\d+)\n$")
             m1 = comp.match(lines[0])
             m2 = comp.match(lines[1])
-            if (m1 is None) or (m2 is None): raise ValueErrur,"format mismatch"
+            if (m1 is None) or (m2 is None): raise ValueError,"format mismatch"
 
             self.lastinraw = int(m1.group(1))
             self.lastoutraw = int(m1.group(2))
@@ -405,7 +398,7 @@ def get_model(all,search):
 def main():
     global DEBUG
 
-    allrouter = (nc_router(), fritz_box(), archer_c7())
+    allrouter = (nc_router(), fritzbox_7490(), archer_c7())
 
     hostip = DEFAULT_HOST
     portno = DEFAULT_PORT
