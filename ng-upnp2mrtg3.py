@@ -299,7 +299,7 @@ ROUTERS = [
            "GetTotalBytesSent",
            "NewTotalBytesSent",
         # uptime
-        "/ifc",                  # controlurl
+        "/ipc",                  # controlurl
            "WANIPConnection:1",  # servicetype
            "GetStatusInfo",
            "NewUptime",
@@ -441,7 +441,7 @@ def main():
         list_models(args)
         parser.exit(1)
 
-    DEBUG = args.debug
+    DEBUG = DEBUG or args.debug
 
     selected_model = None
     for dt in ROUTERS:
