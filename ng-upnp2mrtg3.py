@@ -16,10 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ######################################################################
 
-# name/IP and port of router
-DEFAULT_HOST = "192.168.0.1"
-DEFAULT_PORT = 49300
-
 # prints lots of stuff
 global_debug = None         # will be set by command line parameter
 
@@ -234,6 +230,8 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #
 #    short id, used in list_model and as parameter --type
 #    long id, something more descriptive, will be on the output for MRTG
+#    default router IP address
+#    default router port number
 #    SoapAction for incoming byte count
 #    SoapAction for outgoing byee count
 #    SoapAction for uptime request
@@ -246,13 +244,15 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #    tag in answer containing the result
 #
 Router = collections.namedtuple('Router',
-        ['short_id', 'long_id', 'incoming', 'outgoing', 'uptime', 'uptime_conv'])
+        ['short_id', 'long_id', 'host', 'port', 'incoming', 'outgoing', 'uptime', 'uptime_conv'])
 SoapAction = collections.namedtuple('SoapAction',
         ['path', 'schema', 'action', 'tag'])
 ROUTERS = [
     Router(
         # short_id, long_id
         "nc_premium", "NetCologne Premium",
+        # host, port
+        "192.168.0.1", 49300,
         # incoming bytes
         SoapAction(
             "/WANCommonInterfaceConfigService/control",    # control url
@@ -277,6 +277,8 @@ ROUTERS = [
     Router(
         # short_id, long_id
         "fritzbox_7490", "Fritzbox 7490",
+        # host, port
+        "192.168.178.1", 49000,
         # incoming bytes
         SoapAction(
            "/igdupnp/control/WANCommonIFC1",
@@ -302,6 +304,8 @@ ROUTERS = [
         # info contributed by https://github.com/ddiepo
         # short_id, long_id
         "archer_c7", "Tp-Link Archer C7",
+        # host, port
+        "192.168.0.1", 49300,
         # incoming bytes
         SoapAction(
            "/ifc",
@@ -422,10 +426,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='query UPNP router', add_help=False)
     parser.add_argument('--host', '-h',
-                        default=DEFAULT_HOST,
                         help='host ip')
     parser.add_argument('--port', '-p',
-                        default=DEFAULT_PORT,
                         type=int,
                         help='port number')
     parser.add_argument('--type', '-t',
@@ -466,8 +468,16 @@ def main():
             selected_model = dt
             break
 
+    host = args.host
+    if not host:
+        host = selected_model.host
+
+    port = args.port
+    if not port:
+        port = selected_model.port
+
     # query the box
-    uc = Upnpclient(args.host, args.port)
+    uc = Upnpclient(host, port)
     inbytes  = uc.send_command(selected_model.incoming.path, selected_model.incoming.schema,
             selected_model.incoming.action, selected_model.incoming.tag)
     outbytes = uc.send_command(selected_model.outgoing.path, selected_model.outgoing.schema,
