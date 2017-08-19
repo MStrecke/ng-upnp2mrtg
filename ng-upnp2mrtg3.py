@@ -246,7 +246,7 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #
 ROUTERS = [
     (   # short_id, long_id
-        "nc_premium", "NetCologn Premium",
+        "nc_premium", "NetCologne Premium",
         # incoming bytes
         "/WANCommonInterfaceConfigService/control",    # control url
            "WANCommonInterfaceConfig:1",              # schema

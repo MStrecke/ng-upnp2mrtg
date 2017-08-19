@@ -9,11 +9,11 @@ _ng-upnp2mrtg3_ is a small python script to retrieve data from UPNP enabled rout
 * The old Python2 version _ng-upnp2mrtg.py_ is still available but not recommended.
 
 ## Supported devices
- * NetCologn Premium (a re-branded Sphairon Turbolink 7211)
+ * NetCologne Premium (a re-branded Sphairon Turbolink 7211)
  * Fritzbox 7490
  * Tp-Link Archer C7
 
-# PREREQUISITS
+# PREREQUISITES
 
 * Python 3.1 or 2.5 resp.
 * standard libraries only
