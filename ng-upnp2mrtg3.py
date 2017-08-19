@@ -437,6 +437,7 @@ def list_models(args):
 def main():
     global global_debug
 
+    ROUTERS.sort()  # Sort the list by short_id for more readable output
     all_short_ids = [d.short_id for d in ROUTERS]
 
     parser = argparse.ArgumentParser(description='query UPNP router', add_help=False)
