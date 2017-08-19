@@ -117,6 +117,17 @@ def gettag(answer, tag):
 
     return answer[po1:po2]
 
+def find_router(short_id):
+    """ find the router matching the short_id
+
+    :param short_id: name of router
+    :return: Router collection or None if not found
+    """
+    for dt in ROUTERS:
+        if dt.short_id == short_id:
+            return dt
+    return None
+
 class Upnpclient:
     """ Class to build a SOAP request
         send it to tht server
@@ -327,6 +338,10 @@ ROUTERS = [
         archer_uptime_conv
     )
 ]
+ROUTERS.append(find_router('fritzbox_7490').
+        _replace(short_id='fritzbox_3370', long_id='Fritzbox 3370'))
+ROUTERS.append(find_router('fritzbox_7490').
+        _replace(short_id='fritzbox_3270', long_id='Fritzbox 3270'))
 
 class Nowrap_handler:
     """ Handle wrap-around of counter
@@ -462,11 +477,7 @@ def main():
 
     global_debug = args.debug
 
-    selected_model = None
-    for dt in ROUTERS:
-        if dt.short_id == args.type:
-            selected_model = dt
-            break
+    selected_model = find_router(args.type)
 
     host = args.host
     if not host:
