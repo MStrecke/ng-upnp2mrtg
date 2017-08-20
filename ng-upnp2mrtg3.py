@@ -244,7 +244,7 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #    default router IP address
 #    default router port number
 #    SoapAction for incoming byte count
-#    SoapAction for outgoing byee count
+#    SoapAction for outgoing byte count
 #    SoapAction for uptime request
 #    function pointer to convert uptime into a human readable form
 #
