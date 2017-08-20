@@ -16,16 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ######################################################################
 
-# name/IP and port of router
-DEFAULT_HOST = "192.168.0.1"
-DEFAULT_PORT = 49300
-
 # prints lots of stuff
 global_debug = None         # will be set by command line parameter
 
 import socket
 import re
 import argparse
+import collections
 import datetime
 
 def dhms(s):
@@ -119,6 +116,17 @@ def gettag(answer, tag):
         return None      # closing tag not found
 
     return answer[po1:po2]
+
+def find_router(short_id):
+    """ find the router matching the short_id
+
+    :param short_id: name of router
+    :return: Router collection or None if not found
+    """
+    for dt in ROUTERS:
+        if dt.short_id == short_id:
+            return dt
+    return None
 
 class Upnpclient:
     """ Class to build a SOAP request
@@ -229,83 +237,111 @@ SOAPACTION: "urn:schemas-upnp-org:service:%s#%s"
 #############################################################
 # Router definition
 #
-# A list of tuples. Each tuple has 15 entries.
+# A list of Router definitions.
 #
-#        0: short_id - used in list_model and as parameter --type
-#        1: long_id - something more descriptive, will be on the output for MRTG
-#    2 - 5: soap parameters for incoming byte count
-#    6 - 9: soap parameters for outgoing byee count
-#  10 - 13: soap parameters for uptime request
-#       14: function pointer to convert uptime into a human readable form
+#    short id, used in list_model and as parameter --type
+#    long id, something more descriptive, will be on the output for MRTG
+#    default router IP address
+#    default router port number
+#    SoapAction for incoming byte count
+#    SoapAction for outgoing byee count
+#    SoapAction for uptime request
+#    function pointer to convert uptime into a human readable form
 #
-#  soap parameter:
-#    control url (with leading slash)
+#  SoapAction:
+#    control path (with leading slash)
 #    service type
 #    service action
 #    tag in answer containing the result
 #
+Router = collections.namedtuple('Router',
+        ['short_id', 'long_id', 'host', 'port', 'incoming', 'outgoing', 'uptime', 'uptime_conv'])
+SoapAction = collections.namedtuple('SoapAction',
+        ['path', 'schema', 'action', 'tag'])
 ROUTERS = [
-    (   # short_id, long_id
-        "nc_premium", "NetCologn Premium",
+    Router(
+        # short_id, long_id
+        "nc_premium", "NetCologne Premium",
+        # host, port
+        "192.168.0.1", 49300,
         # incoming bytes
-        "/WANCommonInterfaceConfigService/control",    # control url
+        SoapAction(
+            "/WANCommonInterfaceConfigService/control",    # control url
            "WANCommonInterfaceConfig:1",              # schema
            "GetTotalBytesReceived",                   # action
-           "NewTotalBytesReceived",                   # tag
+           "NewTotalBytesReceived"),                   # tag
         # outgoing bytes
-        "/WANCommonInterfaceConfigService/control",
+        SoapAction(
+           "/WANCommonInterfaceConfigService/control",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
-           "NewTotalBytesSent",
+           "NewTotalBytesSent"),
         # uptime
-        "/WANIPConnectionService/control",
+        SoapAction(
+           "/WANIPConnectionService/control",
            "WANIPConnection:1",
            "GetStatusInfo",
-           "NewUptime",
+           "NewUptime"),
         # function pointer: uptime -> human readable format
         dhms
     ),
-    (   # short_id, long_id
+    Router(
+        # short_id, long_id
         "fritzbox_7490", "Fritzbox 7490",
+        # host, port
+        "192.168.178.1", 49000,
         # incoming bytes
-        "/igdupnp/control/WANCommonIFC1",
+        SoapAction(
+           "/igdupnp/control/WANCommonIFC1",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesReceived",
-           "NewTotalBytesReceived",
+           "NewTotalBytesReceived"),
         # outgoing bytes
-        "/igdupnp/control/WANCommonIFC1",
+        SoapAction(
+           "/igdupnp/control/WANCommonIFC1",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
-           "NewTotalBytesSent",
+           "NewTotalBytesSent"),
         # uptime
-        "/igdupnp/control/WANIPConn1",   # controlurl
+        SoapAction(
+           "/igdupnp/control/WANIPConn1",   # controlurl
            "WANIPConnection:1",  # servicetype
            "GetStatusInfo",
-           "NewUptime",
+           "NewUptime"),
         # function pointer: uptime -> human readable format
         dhms
     ),
-    (   # info contributed by https://github.com/ddiepo
+    Router(
+        # info contributed by https://github.com/ddiepo
         # short_id, long_id
         "archer_c7", "Tp-Link Archer C7",
+        # host, port
+        "192.168.0.1", 49300,
         # incoming bytes
-        "/ifc",
+        SoapAction(
+           "/ifc",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesReceived",
-           "NewTotalBytesReceived",
+           "NewTotalBytesReceived"),
         # outgoing bytes
-        "/ifc",
+        SoapAction(
+           "/ifc",
            "WANCommonInterfaceConfig:1",
            "GetTotalBytesSent",
-           "NewTotalBytesSent",
+           "NewTotalBytesSent"),
         # uptime
-        "/ipc",                  # controlurl
+        SoapAction(
+           "/ipc",                  # controlurl
            "WANIPConnection:1",  # servicetype
            "GetStatusInfo",
-           "NewUptime",
+           "NewUptime"),
         archer_uptime_conv
     )
 ]
+ROUTERS.append(find_router('fritzbox_7490').
+        _replace(short_id='fritzbox_3370', long_id='Fritzbox 3370'))
+ROUTERS.append(find_router('fritzbox_7490').
+        _replace(short_id='fritzbox_3270', long_id='Fritzbox 3270'))
 
 class Nowrap_handler:
     """ Handle wrap-around of counter
@@ -396,19 +432,18 @@ def list_models(args):
     print("--------        -----------")
 
     for m in ROUTERS:
-        print("%-15s %s" % (m[0], m[1]))
+        print("%-15s %s" % (m.short_id, m.long_id))
 
 def main():
     global global_debug
 
-    all_short_ids = [d[0] for d in ROUTERS]
+    ROUTERS.sort()  # Sort the list by short_id for more readable output
+    all_short_ids = [d.short_id for d in ROUTERS]
 
     parser = argparse.ArgumentParser(description='query UPNP router', add_help=False)
     parser.add_argument('--host', '-h',
-                        default=DEFAULT_HOST,
                         help='host ip')
     parser.add_argument('--port', '-p',
-                        default=DEFAULT_PORT,
                         type=int,
                         help='port number')
     parser.add_argument('--type', '-t',
@@ -443,19 +478,26 @@ def main():
 
     global_debug = args.debug
 
-    selected_model = None
-    for dt in ROUTERS:
-        if dt[0] == args.type:
-            selected_model = dt
-            break
+    selected_model = find_router(args.type)
+
+    host = args.host
+    if not host:
+        host = selected_model.host
+
+    port = args.port
+    if not port:
+        port = selected_model.port
 
     # query the box
-    uc = Upnpclient(args.host, args.port)
-    inbytes  = uc.send_command(selected_model[2], selected_model[3], selected_model[4], selected_model[5])
-    outbytes = uc.send_command(selected_model[6], selected_model[7], selected_model[8], selected_model[9])
-    uptime   = uc.send_command(selected_model[10], selected_model[11], selected_model[12], selected_model[13])
+    uc = Upnpclient(host, port)
+    inbytes  = uc.send_command(selected_model.incoming.path, selected_model.incoming.schema,
+            selected_model.incoming.action, selected_model.incoming.tag)
+    outbytes = uc.send_command(selected_model.outgoing.path, selected_model.outgoing.schema,
+            selected_model.outgoing.action, selected_model.outgoing.tag)
+    uptime   = uc.send_command(selected_model.uptime.path, selected_model.uptime.schema,
+            selected_model.uptime.action, selected_model.uptime.tag)
 
-    uptime_str = selected_model[14](uptime)
+    uptime_str = selected_model.uptime_conv(uptime)
 
     nowrap = None
     if not(args.nowrap is None):
@@ -491,7 +533,7 @@ def main():
     print(none2unknown(inbytes))
     print(none2unknown(outbytes))
     print(uptime_str)
-    print(selected_model[1] + logindicator)
+    print(selected_model.long_id + logindicator)
 
 if __name__ == "__main__":
     main()
